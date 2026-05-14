@@ -5,3 +5,5 @@ storage/uploads/
 storage/chroma_db/
 node_modules/
 dist/
+backend/studymind.db
+backend/chroma.sqlite3
