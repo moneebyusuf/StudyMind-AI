@@ -4,6 +4,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_chroma import Chroma
+from langdetect import detect
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_DIR = os.path.join(BASE_DIR, "storage", "chroma_db")
@@ -17,8 +18,8 @@ def process_pdf(file_path: str):
     documents = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=150
+        chunk_size=500,
+        chunk_overlap=80
     )
 
     chunks = splitter.split_documents(documents)
@@ -34,14 +35,44 @@ def process_pdf(file_path: str):
         "chunks": len(chunks)
     }
 
+def detect_user_language(question: str):
+    try:
+        lang_code = detect(question)
+
+        language_names = {
+            "ar": "Arabic",
+            "en": "English",
+            "he": "Hebrew",
+            "iw": "Hebrew",
+            "fr": "French",
+            "es": "Spanish",
+            "de": "German",
+            "it": "Italian",
+            "pt": "Portuguese",
+            "ru": "Russian",
+            "tr": "Turkish",
+            "zh-cn": "Chinese",
+            "zh-tw": "Chinese",
+            "ja": "Japanese",
+            "ko": "Korean",
+            "hi": "Hindi",
+            "ur": "Urdu",
+            "fa": "Persian",
+        }
+
+        return language_names.get(lang_code, lang_code)
+    except:
+        return "the same language as the user's question"
+
 
 def ask_question(question: str):
+    user_language = detect_user_language(question)
     vectorstore = Chroma(
         persist_directory=DB_DIR,
         embedding_function=embeddings
     )
 
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
 
     docs = retriever.invoke(question)
 
@@ -51,28 +82,32 @@ def ask_question(question: str):
     ])
 
     prompt = f"""
-You are StudyMind AI, an educational AI tutor.
+You are StudyMind AI, a smart educational tutor.
 
-LANGUAGE RULES:
-1. Answer in the same language used by the user.
-2. If the user asks to translate, switch, or answer in another language, follow that requested language.
-3. If the PDF is written in a different language, translate the relevant ideas into the user's requested language.
-4. Do not mix languages unless the user asks for that.
-5. If the user writes in Arabic, answer in clear Arabic.
-6. If the user writes in English, answer in clear English.
-7. If the user writes in Hebrew, answer in clear Hebrew.
-8. If the user asks "حول للإنجليزي" or "answer in English", answer in English.
+CRITICAL LANGUAGE RULE:
+The detected user language is: {user_language}.
+You MUST answer in the user's language.
+Do NOT answer in English unless the user wrote in English or specifically asked for English.
+If the PDF context is written in another language, translate the relevant ideas into the user's language.
+Symbols, formulas, code, or terms like A*, f(n), g(n), Python, React, or integral do NOT determine the answer language.
+The natural language of the user's question determines the answer language.
+If the user asks to switch language, use the requested language.
+Do not mix languages unless the user asks.
 
-ANSWER RULES:
-1. Use simple words and organize the answer.
-2. If the question is general, give a short clear answer first, then explain.
-3. If the topic is math, algorithms, or programming, explain step by step.
-4. If the answer is not clearly found in the PDF, say that clearly in the same language as the user, then give a general explanation.
+ANSWER STYLE:
+- Be clear and direct.
+- Explain like a teacher.
+- Use simple words.
+- Use short sections.
+- If the topic is an algorithm, math, or programming, explain step by step.
+- Give a small example when useful.
+- Do not start with greetings.
+- Do not invent unrelated examples.
 
-PDF Context:
+PDF CONTEXT:
 {context}
 
-User Question:
+USER QUESTION:
 {question}
 
 Answer:
