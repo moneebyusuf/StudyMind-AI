@@ -102,7 +102,7 @@ body {
 /* PDF upload */
 
 .pdf-box {
-  margin: 20px auto 10px;
+  margin: 12px auto 8px;
   width: min(900px, 92%);
   background: #111827;
   border: 1px solid #334155;
@@ -162,13 +162,13 @@ input[type="file"] {
   width: min(900px, 92%);
   margin: 0 auto;
   overflow-y: auto;
-  padding: 20px 0 120px;
+  padding: 10px 0 110px;
 }
 
 .welcome {
   text-align: center;
   color: #94a3b8;
-  margin-top: 80px;
+  margin-top: 30px;
 }
 
 .welcome h2 {
@@ -177,7 +177,7 @@ input[type="file"] {
 
 .message-row {
   display: flex;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .user-row {
@@ -189,18 +189,20 @@ input[type="file"] {
 }
 
 .bubble {
-  max-width: 75%;
-  padding: 15px 18px;
+  max-width: 85%;
+  min-width: 280px;
+  padding: 22px 26px;
   border-radius: 18px;
-  line-height: 1.6;
+  line-height: 1.8;
   white-space: pre-wrap;
+  font-size: 17px;
 }
 
 .bubble .label {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: bold;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
   opacity: 0.8;
 }
 
@@ -209,6 +211,7 @@ input[type="file"] {
 }
 
 .user {
+  max-width: 420px;
   background: #2563eb;
   color: white;
   border-bottom-right-radius: 5px;
@@ -236,7 +239,7 @@ input[type="file"] {
 }
 
 .input-area textarea {
-  width: min(760px, 80%);
+  width: min(720px, 80%);
   min-height: 55px;
   max-height: 150px;
   resize: vertical;
@@ -455,4 +458,32 @@ input[type="file"] {
 .delete-chat-btn:hover {
   background: #ef4444;
   color: white;
+}
+.ai {
+  max-width: 900px;
+  width: fit-content;
+}
+
+.ai p,
+.ai li {
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.user {
+  max-width: 420px;
+}
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 14px 0;
+  font-size: 1.25rem;
+}
+
+.bubble .katex {
+  font-size: 1.15rem;
+}
+
+.bubble p {
+  margin: 10px 0;
 }
