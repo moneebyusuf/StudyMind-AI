@@ -1,0 +1,7 @@
+backend/venv/
+__pycache__/
+.env
+storage/uploads/
+storage/chroma_db/
+node_modules/
+dist/
