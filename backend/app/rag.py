@@ -22,7 +22,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DB_DIR = os.path.join(BASE_DIR, "storage", "chroma_db")
 os.makedirs(DB_DIR, exist_ok=True)
 
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
+embeddings = OllamaEmbeddings(
+    model="nomic-embed-text",
+    base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+)
 
 def has_bad_math_format(answer: str) -> bool:
     bad_patterns = [
@@ -173,7 +176,10 @@ def ask_question(question: str, chat_id: int, mode: str = "balanced", response_l
         answer_style = "Give a clear balanced answer."
         model_name = "llama3.2:3b"
 
-    llm = OllamaLLM(model=model_name)
+    llm = OllamaLLM(
+        model=model_name,
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    )
     retriever = vectorstore.as_retriever(search_kwargs={"k": k})
 
     docs = retriever.invoke(question)
@@ -342,7 +348,10 @@ Corrected answer:
         print("PRIMARY MODEL ERROR:", e)
 
         if mode == "deep":
-            fallback_llm = OllamaLLM(model="llama3.2:3b")
+            fallback_llm = OllamaLLM(
+                model="llama3.2:3b",
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+            )
 
             try:
                 return fallback_llm.invoke(prompt)

@@ -1,0 +1,9 @@
+backend/venv
+frontend/node_modules
+.git
+storage/uploads
+storage/chroma_db
+backend/studymind.db
+backend/chroma.sqlite3
+__pycache__
+*.pyc

@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: studymind-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/studymind.db:/app/studymind.db
+      - ./storage:/app/storage
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: studymind-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

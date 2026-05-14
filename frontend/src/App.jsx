@@ -260,7 +260,7 @@ function App() {
       <div className="auth-page">
         <div className="auth-card">
           <h1>StudyMind AI</h1>
-          <p>Sign in to save your PDFs, chats, and learning history.</p>
+          <p>Your AI study assistant for files, notes, images, and documents.</p>
 
           <div className="auth-tabs">
             <button
@@ -359,7 +359,7 @@ function App() {
         <header className="top-bar">
           <div>
             <h1>StudyMind AI</h1>
-            <p>Upload any supported file and ask anything about it.</p>
+            <p>Upload files, chat with your content, and get clear AI explanations.</p>
           </div>
         </header>
 

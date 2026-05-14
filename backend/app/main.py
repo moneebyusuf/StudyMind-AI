@@ -19,9 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "storage", "uploads")
-
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_DIR = os.path.dirname(BASE_DIR)
+UPLOAD_DIR = os.path.join(PROJECT_DIR, "storage", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
