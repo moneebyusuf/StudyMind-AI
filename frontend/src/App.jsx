@@ -1,51 +1,210 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import "./App.css";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+
+const API = "http://127.0.0.1:8000";
+
 
 function App() {
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
+  const [user, setUser] = useState(null);
+
+  const [authMode, setAuthMode] = useState("login");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [file, setFile] = useState(null);
   const [uploadMessage, setUploadMessage] = useState("");
-  const [question, setQuestion] = useState("");
+
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
 
-  async function uploadPDF() {
-    if (!file) {
-      setUploadMessage("Please choose a PDF file first.");
-      return;
+  const [question, setQuestion] = useState("");
+  const [mode, setMode] = useState("balanced");
+  const [responseLanguage, setResponseLanguage] = useState("English");
+
+  const authHeaders = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+
+  useEffect(() => {
+    if (token) {
+      loadUser();
+      loadChats();
     }
+  }, [token]);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
+  async function loadUser() {
     try {
-      setUploadMessage("Uploading and processing PDF...");
+      const res = await axios.get(`${API}/me`, authHeaders);
+      setUser(res.data);
+    } catch {
+      logout();
+    }
+  }
 
-      const res = await axios.post("http://127.0.0.1:8000/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+  async function login() {
+    try {
+      const res = await axios.post(`${API}/login`, {
+        email,
+        password,
       });
 
-      setUploadMessage(
-        `PDF ready: ${file.name} | Pages: ${res.data.result.pages} | Chunks: ${res.data.result.chunks}`
-      );
-
-      setMessages([
-        {
-          role: "ai",
-          text: `I finished reading "${file.name}". You can now ask me questions about it.`,
-        },
-      ]);
+      localStorage.setItem("token", res.data.token);
+      setToken(res.data.token);
+      setUser(res.data.user);
     } catch (error) {
-      setUploadMessage("Error uploading PDF. Make sure the backend is running.");
+      alert(error.response?.data?.detail || "Login failed");
+    }
+  }
+
+  async function signup() {
+    try {
+      const res = await axios.post(`${API}/signup`, {
+        username,
+        email,
+        password,
+      });
+
+      localStorage.setItem("token", res.data.token);
+      setToken(res.data.token);
+      setUser(res.data.user);
+    } catch (error) {
+      alert(error.response?.data?.detail || "Signup failed");
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("token");
+    setToken("");
+    setUser(null);
+    setChats([]);
+    setMessages([]);
+    setActiveChatId(null);
+  }
+
+  async function loadChats() {
+    try {
+      const res = await axios.get(`${API}/chats`, authHeaders);
+      setChats(res.data);
+    } catch (error) {
       console.error(error);
     }
   }
 
+  async function createNewChat() {
+    try {
+      const res = await axios.post(
+        `${API}/chats`,
+        { title: "New Chat" },
+        authHeaders
+      );
+
+      setActiveChatId(res.data.id);
+      setMessages([]);
+      await loadChats();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function openChat(chatId) {
+    setActiveChatId(chatId);
+
+    try {
+      const res = await axios.get(
+        `${API}/chats/${chatId}/messages`,
+        authHeaders
+      );
+
+      setMessages(
+        res.data.map((msg) => ({
+          role: msg.role === "ai" ? "ai" : "user",
+          text: msg.content,
+        }))
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function deleteChat(chatId) {
+  const confirmDelete = window.confirm("Delete this chat?");
+  if (!confirmDelete) return;
+
+  try {
+    await axios.delete(`${API}/chats/${chatId}`, authHeaders);
+
+    if (activeChatId === chatId) {
+      setActiveChatId(null);
+      setMessages([]);
+    }
+
+    await loadChats();
+  } catch (error) {
+    console.error(error);
+    alert("Failed to delete chat.");
+  }
+}
+
+  async function uploadPDF() {
+  if (!file) {
+    setUploadMessage("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  if (activeChatId) {
+    formData.append("chat_id", activeChatId);
+  }
+
+  try {
+    setUploadMessage("Uploading and processing file...");
+
+    const res = await axios.post(`${API}/upload`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    setActiveChatId(res.data.chat_id);
+    await loadChats();
+    setMessages([
+    {
+      role: "ai",
+      text: `I finished reading "${file.name}". You can now ask me about it.`,
+    },
+  ]);
+
+    setUploadMessage(
+      `File ready: ${file.name} | Type: ${res.data.result.file_type} | Chunks: ${res.data.result.chunks}`
+    );
+  } catch (error) {
+    setUploadMessage("Error uploading file.");
+    console.error(error);
+  }
+}
+
   async function askAI() {
     if (!question.trim()) return;
+    if (!activeChatId) {
+      alert("Please upload a file or create a chat first.");
+      return;
+    }
 
     const userQuestion = question;
+    setQuestion("");
 
     setMessages((prev) => [
       ...prev,
@@ -53,12 +212,19 @@ function App() {
       { role: "ai", text: "Thinking..." },
     ]);
 
-    setQuestion("");
-
     try {
-      const res = await axios.post("http://127.0.0.1:8000/ask", {
-        question: userQuestion,
-      });
+      const res = await axios.post(
+        `${API}/ask`,
+        {
+          question: userQuestion,
+          chat_id: activeChatId,
+          mode,
+          response_language: responseLanguage,
+        },  
+        authHeaders
+      );
+
+      setActiveChatId(res.data.chat_id);
 
       setMessages((prev) => {
         const updated = [...prev];
@@ -68,17 +234,17 @@ function App() {
         };
         return updated;
       });
+
+      await loadChats();
     } catch (error) {
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: "ai",
-          text: "Error getting answer. Make sure the PDF was uploaded, backend is running, and Ollama is working.",
+          text: error.response?.data?.detail || "Error getting answer.",
         };
         return updated;
       });
-
-      console.error(error);
     }
   }
 
@@ -89,8 +255,58 @@ function App() {
     }
   }
 
-  function clearChat() {
-    setMessages([]);
+  if (!token) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1>StudyMind AI</h1>
+          <p>Sign in to save your PDFs, chats, and learning history.</p>
+
+          <div className="auth-tabs">
+            <button
+              className={authMode === "login" ? "active" : ""}
+              onClick={() => setAuthMode("login")}
+            >
+              Login
+            </button>
+            <button
+              className={authMode === "signup" ? "active" : ""}
+              onClick={() => setAuthMode("signup")}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          {authMode === "signup" && (
+            <input
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          )}
+
+          <input
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button
+            className="auth-submit"
+            onClick={authMode === "login" ? login : signup}
+          >
+            {authMode === "login" ? "Login" : "Create Account"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -98,24 +314,43 @@ function App() {
       <aside className="sidebar">
         <h2>StudyMind AI</h2>
 
-        <button className="new-chat-btn" onClick={clearChat}>
+        <div className="user-box">
+          <p>{user?.username}</p>
+          <button onClick={logout}>Logout</button>
+        </div>
+
+        <button className="new-chat-btn" onClick={createNewChat}>
           + New Chat
         </button>
 
         <div className="history">
           <h3>Chat History</h3>
 
-          {messages.length === 0 ? (
-            <p className="empty-history">No messages yet.</p>
+          {chats.length === 0 ? (
+            <p className="empty-history">No chats yet.</p>
           ) : (
-            messages
-              .filter((msg) => msg.role === "user")
-              .map((msg, index) => (
-                <div className="history-item" key={index}>
-                  {msg.text.slice(0, 35)}
-                  {msg.text.length > 35 ? "..." : ""}
-                </div>
-              ))
+            chats.map((chat) => (
+              <div
+                className={`history-item ${
+                  activeChatId === chat.id ? "selected" : ""
+                }`}
+                key={chat.id}
+              >
+                <span onClick={() => openChat(chat.id)}>
+                  {chat.title}
+                </span>
+
+                <button
+                  className="delete-chat-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteChat(chat.id);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))
           )}
         </div>
       </aside>
@@ -124,27 +359,50 @@ function App() {
         <header className="top-bar">
           <div>
             <h1>StudyMind AI</h1>
-            <p>Upload a PDF and ask anything about it.</p>
+            <p>Upload any supported file and ask anything about it.</p>
           </div>
         </header>
 
         <section className="pdf-box">
           <div>
-            <h2>Upload PDF</h2>
-            <p>Choose a PDF file to teach StudyMind AI.</p>
+            <h2>Upload File</h2>
+            <p>Choose a file to teach StudyMind AI.</p>
           </div>
 
           <div className="upload-row">
             <input
               type="file"
-              accept="application/pdf"
+              accept=".pdf,.txt,.md,.docx,.csv,.py,.js,.jsx,.html,.css,.json,.xlsx,.xls,.pptx,.ppt,.png,.jpg,.jpeg"
               onChange={(e) => setFile(e.target.files[0])}
             />
 
             <button onClick={uploadPDF}>Upload</button>
           </div>
+          
 
           {uploadMessage && <p className="upload-message">{uploadMessage}</p>}
+          <div className="language-row">
+            <label>Response Language</label>
+
+            <select
+              value={responseLanguage}
+              onChange={(e) => setResponseLanguage(e.target.value)}
+            >
+              <option value="Arabic">Arabic</option>
+              <option value="English">English</option>
+              <option value="Hebrew">Hebrew</option>
+              <option value="French">French</option>
+              <option value="Spanish">Spanish</option>
+              <option value="German">German</option>
+              <option value="Turkish">Turkish</option>
+              <option value="Italian">Italian</option>
+              <option value="Portuguese">Portuguese</option>
+              <option value="Russian">Russian</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Korean">Korean</option>
+            </select>
+          </div>
         </section>
 
         <section className="chat-area">
@@ -168,7 +426,12 @@ function App() {
                   <span className="label">
                     {msg.role === "user" ? "You" : "StudyMind AI"}
                   </span>
-                  <p>{msg.text}</p>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
                 </div>
               </div>
             ))
@@ -176,8 +439,14 @@ function App() {
         </section>
 
         <footer className="input-area">
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="fast">Fast</option>
+            <option value="balanced">Balanced</option>
+            <option value="deep">Deep</option>
+          </select>
+
           <textarea
-            placeholder="Ask a question about your PDF..."
+            placeholder="Ask a question about your file..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={handleKeyDown}
